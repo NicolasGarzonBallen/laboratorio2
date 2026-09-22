@@ -1,0 +1,29 @@
+services:
+  inscription-db:
+    image: mysql:latest
+    env_file: .env
+    environment:
+      - MYSQL_DATABASE=${DB_NAME}
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+    ports:
+      - "${DB_PORT}:3306"
+    volumes:
+      - inscription_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  inscription-service:
+    build: .
+    env_file: .env
+    environment:
+      - DB_HOST=inscription-db
+    ports:
+      - "${SERVER_PORT}:${SERVER_PORT}"
+    depends_on:
+      inscription-db:
+        condition: service_healthy
+
+volumes:
+  inscription_db_data:

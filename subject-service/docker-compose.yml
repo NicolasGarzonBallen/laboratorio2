@@ -1,0 +1,29 @@
+services:
+  subject-db:
+    image: mysql:latest
+    env_file: .env
+    environment:
+      - MYSQL_DATABASE=${DB_NAME}
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+    ports:
+      - "${DB_PORT}:3306"
+    volumes:
+      - subject_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  subject-service:
+    build: .
+    env_file: .env
+    environment:
+      - DB_HOST=subject-db
+    ports:
+      - "${SERVER_PORT}:${SERVER_PORT}"
+    depends_on:
+      subject-db:
+        condition: service_healthy
+
+volumes:
+  subject_db_data:

@@ -1,0 +1,32 @@
+# docker-compose propio de student-service.
+# Cumple la regla de independencia: este modulo se levanta, se cae y se
+# reinicia sin tocar a subject-service ni a inscription-service.
+services:
+  student-db:
+    image: mysql:latest
+    env_file: .env
+    environment:
+      - MYSQL_DATABASE=${DB_NAME}
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+    ports:
+      - "${DB_PORT}:3306"
+    volumes:
+      - student_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      timeout: 20s
+      retries: 10
+
+  student-service:
+    build: .
+    env_file: .env
+    environment:
+      - DB_HOST=student-db
+    ports:
+      - "${SERVER_PORT}:${SERVER_PORT}"
+    depends_on:
+      student-db:
+        condition: service_healthy
+
+volumes:
+  student_db_data:
