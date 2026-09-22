@@ -60,6 +60,26 @@ public class InscriptionController {
         }
     }
 
+    @PutMapping("/{id}")
+    @Operation(summary = "Reemplazar una inscripcion")
+    public ResponseEntity<?> update(@PathVariable Long id, @RequestBody InscriptionDTO dto) {
+        try {
+            return ResponseEntity.ok(inscriptionService.update(id, dto));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @PatchMapping("/{id}")
+    @Operation(summary = "Actualizar parcialmente una inscripcion")
+    public ResponseEntity<?> patch(@PathVariable Long id, @RequestBody InscriptionDTO dto) {
+        try {
+            return ResponseEntity.ok(inscriptionService.update(id, dto));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     @PatchMapping("/{id}/status")
     @Operation(summary = "Cambiar el estado de una inscripcion (activa/completada/cancelada). " +
                           "Registra el cambio en el historial y libera el cupo si se cancela.")

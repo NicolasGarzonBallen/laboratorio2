@@ -2,6 +2,7 @@ package com.example.subjectservice.service;
 
 import com.example.subjectservice.DTO.*;
 import com.example.subjectservice.management.CourseRepository;
+import com.example.subjectservice.management.CourseSpecification;
 import com.example.subjectservice.management.DocentRepository;
 import com.example.subjectservice.management.SubjectRepository;
 import com.example.subjectservice.model.Course;
@@ -32,24 +33,12 @@ public class CourseService {
         Pageable pageable = PageRequest.of(pagination.getPageNumber(), pagination.getPageSize(),
             Sort.by(direction, pagination.getSortBy()));
 
-        if (filter.getSubjectId() != null) {
-            return wrap(courseRepository.findBySubjectId(filter.getSubjectId()), pageable);
-        }
-        if (filter.getDocentId() != null) {
-            return wrap(courseRepository.findByDocentId(filter.getDocentId()), pageable);
-        }
-        if (filter.getPeriod() != null) {
-            return wrap(courseRepository.findByPeriod(filter.getPeriod()), pageable);
+        if (filter != null && (filter.getPeriod() != null || filter.getSubjectId() != null
+                || filter.getDocentId() != null)) {
+            return courseRepository.findAll(CourseSpecification.filter(filter), pageable)
+                .map(this::toResponseDTO);
         }
         return courseRepository.findAll(pageable).map(this::toResponseDTO);
-    }
-
-    private Page<CourseResponseDTO> wrap(java.util.List<Course> list, Pageable pageable) {
-        var dtoList = list.stream().map(this::toResponseDTO).toList();
-        int start = (int) pageable.getOffset();
-        int end = Math.min(start + pageable.getPageSize(), dtoList.size());
-        var pageContent = start >= dtoList.size() ? java.util.List.<CourseResponseDTO>of() : dtoList.subList(start, end);
-        return new org.springframework.data.domain.PageImpl<>(pageContent, pageable, dtoList.size());
     }
 
     public CourseResponseDTO getById(Long id) {

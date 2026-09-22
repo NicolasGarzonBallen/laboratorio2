@@ -14,6 +14,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 @Service
@@ -110,6 +112,10 @@ public class StudentService {
 
         if (dto.getName() != null) student.setName(dto.getName());
         if (dto.getLastName() != null) student.setLastName(dto.getLastName());
+        if (dto.getEmail() != null && !dto.getEmail().equals(student.getEmail())
+                && studentRepository.existsByEmail(dto.getEmail())) {
+            throw new RuntimeException("Ya existe un estudiante con email " + dto.getEmail());
+        }
         if (dto.getEmail() != null) student.setEmail(dto.getEmail());
         if (dto.getBirthYear() != 0) student.setBirthYear(dto.getBirthYear());
         if (dto.getProgramId() != null) {
@@ -131,36 +137,41 @@ public class StudentService {
 
     @Transactional
     public void initializeStudents() {
-        if (studentRepository.count() == 0) {
-            if (programaRepository.count() == 0) {
-                throw new RuntimeException("Primero inicializa los programas: POST /api/initialize/programs");
-            }
-            String[] names = {"Juan", "Maria", "Carlos", "Ana", "Luis", "Laura", "Pedro", "Sofia",
-                             "Miguel", "Elena", "Pablo", "Carmen", "Jorge", "Isabel", "David"};
-            String[] lastNames = {"Garcia", "Martinez", "Lopez", "Gonzalez", "Rodriguez", "Perez",
-                                 "Sanchez", "Ramirez", "Torres", "Flores", "Rivera", "Morales"};
-            var programas = programaRepository.findAll();
-            Random random = new Random();
-
-            for (int i = 1; i <= 1000; i++) {
-                String name = names[random.nextInt(names.length)];
-                String lastName = lastNames[random.nextInt(lastNames.length)];
-                int entryYear = random.nextInt(10) + 2016;
-                int birthYear = entryYear - (16 + random.nextInt(5));
-                String code = String.format("%04d", entryYear) + String.format("%04d", i);
-
-                Student student = new Student();
-                student.setName(name);
-                student.setLastName(lastName);
-                student.setEmail(name.toLowerCase() + "." + lastName.toLowerCase() + i + "@uptc.edu.co");
-                student.setCode(code);
-                student.setBirthYear(birthYear);
-                student.setEntryYear(entryYear);
-                student.setPrograma(programas.get(random.nextInt(programas.size())));
-
-                studentRepository.save(student);
-            }
+        long currentCount = studentRepository.count();
+        if (currentCount >= 1000) {
+            return;
         }
+        if (programaRepository.count() == 0) {
+            throw new RuntimeException("Primero inicializa los programas: POST /api/initialize/programs");
+        }
+
+        String[] names = {"Juan", "Maria", "Carlos", "Ana", "Luis", "Laura", "Pedro", "Sofia",
+                         "Miguel", "Elena", "Pablo", "Carmen", "Jorge", "Isabel", "David"};
+        String[] lastNames = {"Garcia", "Martinez", "Lopez", "Gonzalez", "Rodriguez", "Perez",
+                             "Sanchez", "Ramirez", "Torres", "Flores", "Rivera", "Morales"};
+        var programas = programaRepository.findAll();
+        Random random = new Random();
+
+        List<Student> students = new ArrayList<>((int) (1000 - currentCount));
+        for (int i = (int) currentCount + 1; i <= 1000; i++) {
+            String name = names[random.nextInt(names.length)];
+            String lastName = lastNames[random.nextInt(lastNames.length)];
+            int entryYear = random.nextInt(10) + 2016;
+            int birthYear = entryYear - (16 + random.nextInt(5));
+            String code = String.format("%04d", entryYear) + String.format("%04d", i);
+
+            Student student = new Student();
+            student.setName(name);
+            student.setLastName(lastName);
+            student.setEmail(name.toLowerCase() + "." + lastName.toLowerCase() + i + "@uptc.edu.co");
+            student.setCode(code);
+            student.setBirthYear(birthYear);
+            student.setEntryYear(entryYear);
+            student.setPrograma(programas.get(random.nextInt(programas.size())));
+
+            students.add(student);
+        }
+        studentRepository.saveAll(students);
     }
 
     private StudentResponseDTO toResponseDTO(Student student) {

@@ -66,10 +66,31 @@ public class SubjectService {
     public SubjectResponseDTO update(Long id, SubjectDTO dto) {
         Subject subject = subjectRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Materia no encontrada con id: " + id));
+        if (dto.getCode() != null && !dto.getCode().equals(subject.getCode())
+                && subjectRepository.existsByCode(dto.getCode())) {
+            throw new RuntimeException("Ya existe una materia con codigo " + dto.getCode());
+        }
+        subject.setCode(dto.getCode());
         subject.setName(dto.getName());
         subject.setCredits(dto.getCredits());
         subject.setSemester(dto.getSemester());
         subject.setProgram(dto.getProgram());
+        return toResponseDTO(subjectRepository.save(subject));
+    }
+
+    @Transactional
+    public SubjectResponseDTO patch(Long id, SubjectDTO dto) {
+        Subject subject = subjectRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Materia no encontrada con id: " + id));
+        if (dto.getCode() != null && !dto.getCode().equals(subject.getCode())
+                && subjectRepository.existsByCode(dto.getCode())) {
+            throw new RuntimeException("Ya existe una materia con codigo " + dto.getCode());
+        }
+        if (dto.getCode() != null) subject.setCode(dto.getCode());
+        if (dto.getName() != null) subject.setName(dto.getName());
+        if (dto.getCredits() != 0) subject.setCredits(dto.getCredits());
+        if (dto.getSemester() != 0) subject.setSemester(dto.getSemester());
+        if (dto.getProgram() != null) subject.setProgram(dto.getProgram());
         return toResponseDTO(subjectRepository.save(subject));
     }
 

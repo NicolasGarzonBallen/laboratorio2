@@ -69,6 +69,16 @@ public class SubjectController {
         }
     }
 
+    @PatchMapping("/{id}")
+    @Operation(summary = "Actualizar parcialmente una materia")
+    public ResponseEntity<?> patch(@PathVariable Long id, @RequestBody SubjectDTO dto) {
+        try {
+            return ResponseEntity.ok(subjectService.patch(id, dto));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     @DeleteMapping("/{id}")
     @Operation(summary = "Eliminar materia")
     public ResponseEntity<Void> delete(@PathVariable Long id) {

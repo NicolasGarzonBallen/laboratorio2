@@ -82,10 +82,62 @@ public class InscriptionService {
     }
 
     @Transactional
+    public InscriptionResponseDTO update(Long id, InscriptionDTO dto) {
+        Inscription inscription = inscriptionRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Inscripcion no encontrada con id: " + id));
+
+        Long studentId = dto.getStudentId() != null ? dto.getStudentId() : inscription.getStudentId();
+        Long cursoId = dto.getCursoId() != null ? dto.getCursoId() : inscription.getCursoId();
+        String status = dto.getStatus() != null ? dto.getStatus() : inscription.getStatus();
+        validateStatus(status);
+
+        var student = studentClient.getStudentById(studentId);
+        var course = subjectClient.getCourseById(cursoId);
+        boolean courseChanged = !cursoId.equals(inscription.getCursoId());
+        boolean wasActive = "activa".equalsIgnoreCase(inscription.getStatus());
+        boolean willBeActive = "activa".equalsIgnoreCase(status);
+
+        if (willBeActive) {
+            var existing = inscriptionRepository.findByStudentIdAndCursoIdAndStatus(studentId, cursoId, "activa");
+            if (existing.isPresent() && !existing.get().getId().equals(id)) {
+                throw new RuntimeException("El estudiante ya tiene una inscripcion activa en este curso");
+            }
+        }
+        if (wasActive && (!willBeActive || courseChanged)) {
+            subjectClient.releaseFromCourse(inscription.getCursoId());
+        }
+        if (willBeActive && (!wasActive || courseChanged)) {
+            subjectClient.enrollInCourse(cursoId);
+        }
+
+        String previousStatus = inscription.getStatus();
+        inscription.setStudentId(studentId);
+        inscription.setCursoId(cursoId);
+        inscription.setPeriod(dto.getPeriod() != null ? dto.getPeriod() : inscription.getPeriod());
+        inscription.setStatus(status);
+        Inscription saved = inscriptionRepository.save(inscription);
+
+        if (!status.equalsIgnoreCase(previousStatus)) {
+            RecordStatus history = new RecordStatus();
+            history.setPreviousStatus(previousStatus);
+            history.setNewStatus(status);
+            history.setReason("Inscripcion actualizada");
+            history.setInscription(saved);
+            recordStatusRepository.save(history);
+        }
+
+        InscriptionResponseDTO response = toResponseDTOFull(saved);
+        response.setStudentName(student.getName() + " " + student.getLastName());
+        response.setCourseName(course.getName());
+        return response;
+    }
+
+    @Transactional
     public InscriptionResponseDTO changeStatus(Long id, RecordStatusDTO dto) {
         Inscription inscription = inscriptionRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Inscripcion no encontrada con id: " + id));
 
+        validateStatus(dto.getNewStatus());
         String previous = inscription.getStatus();
         inscription.setStatus(dto.getNewStatus());
         inscriptionRepository.save(inscription);
@@ -97,9 +149,11 @@ public class InscriptionService {
         history.setInscription(inscription);
         recordStatusRepository.save(history);
 
-        // Si se cancela, liberamos el cupo en subject-service (cupo en tiempo real).
+        // Mantiene el cupo sincronizado al cambiar entre estados activos e inactivos.
         if ("cancelada".equalsIgnoreCase(dto.getNewStatus()) && !"cancelada".equalsIgnoreCase(previous)) {
             subjectClient.releaseFromCourse(inscription.getCursoId());
+        } else if ("activa".equalsIgnoreCase(dto.getNewStatus()) && !"activa".equalsIgnoreCase(previous)) {
+            subjectClient.enrollInCourse(inscription.getCursoId());
         }
 
         return toResponseDTOFull(inscription);
@@ -109,8 +163,18 @@ public class InscriptionService {
     public void delete(Long id) {
         Inscription inscription = inscriptionRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Inscripcion no encontrada con id: " + id));
-        subjectClient.releaseFromCourse(inscription.getCursoId());
+        if ("activa".equalsIgnoreCase(inscription.getStatus())) {
+            subjectClient.releaseFromCourse(inscription.getCursoId());
+        }
         inscriptionRepository.deleteById(id);
+    }
+
+    private void validateStatus(String status) {
+        if (status == null || !("activa".equalsIgnoreCase(status)
+                || "completada".equalsIgnoreCase(status)
+                || "cancelada".equalsIgnoreCase(status))) {
+            throw new RuntimeException("Estado invalido. Use activa, completada o cancelada");
+        }
     }
 
     // Version liviana para listados (evita 2N llamadas HTTP al paginar)

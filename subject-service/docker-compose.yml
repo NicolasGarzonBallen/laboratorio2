@@ -19,6 +19,7 @@ services:
     env_file: .env
     environment:
       - DB_HOST=subject-db
+      - DB_PORT=3306
     ports:
       - "${SERVER_PORT}:${SERVER_PORT}"
     depends_on:
