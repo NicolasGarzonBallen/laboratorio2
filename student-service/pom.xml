@@ -47,6 +47,10 @@
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>2.5.0</version>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
         <!-- Carga el archivo .env como variables de entorno de Spring, para
              que application.properties pueda usar ${VAR} sin nada hardcodeado -->
         <dependency>

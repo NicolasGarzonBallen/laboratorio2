@@ -1,33 +1,47 @@
-# docker-compose propio de student-service.
-# Cumple la regla de independencia: este modulo se levanta, se cae y se
-# reinicia sin tocar a subject-service ni a inscription-service.
+# docker-compose propio de student-service (Taller 1).
+# Este modulo se levanta, se cae y se reinicia sin tocar a subject-service
+# ni a inscription-service.
 services:
-  student-db:
-    image: mysql:latest
-    env_file: .env
-    environment:
-      - MYSQL_DATABASE=${DB_NAME}
-      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
-    ports:
-      - "${DB_PORT}:3306"
-    volumes:
-      - student_db_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 20s
-      retries: 10
-
   student-service:
     build: .
+    image: estudiantes:1.0
     env_file: .env
     environment:
       - DB_HOST=student-db
       - DB_PORT=3306
     ports:
-      - "${SERVER_PORT}:${SERVER_PORT}"
+      - "${SERVER_PORT}:${SERVER_PORT}"   # solo para probar hoy
     depends_on:
       student-db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:${SERVER_PORT}/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 40s
+    restart: unless-stopped
+    networks: [back]
+
+  student-db:
+    # sin fijar version: el volumen student_db_data ya fue creado con mysql:latest
+    # y MySQL no permite volver a una version menor (error "Invalid MySQL server downgrade")
+    image: mysql:latest
+    environment:
+      - MYSQL_DATABASE=${DB_NAME}
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+    # sin "ports": la BD solo es alcanzable dentro de la red "back"
+    volumes:
+      - student_db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks: [back]
+
+networks:
+  back: {}
 
 volumes:
-  student_db_data:
+  student_db_data: {}
